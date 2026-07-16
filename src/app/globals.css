@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+:root { --background: #f3f4f2; --foreground: #161a18; }
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+html { background: var(--background); }
+body { margin: 0; background: var(--background); color: var(--foreground); font-family: "Geist", "Geist Fallback", Arial, sans-serif; }
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }
+::selection { background: #f1d69f; color: #20190d; }
+.field { margin-top: 7px; width: 100%; border-radius: 12px; border: 1px solid #d9ded9; background: #fbfcfb; padding: 10px 12px; font-size: 13px; font-weight: 400; color: #1d231f; outline: none; transition: .15s ease; }
+.field:focus { border-color: #8f9891; background: white; box-shadow: 0 0 0 3px rgba(30,38,33,.06); }
+.mini-field { width: 100%; border-radius: 9px; border: 1px solid #e0e4e0; background: #f9faf9; padding: 7px 8px; font-size: 11px; outline: none; }
+.primary-btn,.secondary-btn,.action-dark { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 38px; border-radius: 11px; padding: 0 13px; font-size: 12px; font-weight: 650; }
+.primary-btn { background: #eaa83b; color: #21190b; }
+.secondary-btn { border: 1px solid #d8ddd8; background: white; color: #4c554f; }
+.action-dark { background: #171c19; color: white; padding-inline: 16px; }
+@media print {
+  body * { visibility: hidden !important; }
+  #quote-document, #quote-document * { visibility: visible !important; }
+  #quote-document { position: absolute; inset: 0; width: 100%; max-width: none; min-height: 0; padding: 12mm; box-shadow: none; }
+  @page { size: letter; margin: 0; }
+}

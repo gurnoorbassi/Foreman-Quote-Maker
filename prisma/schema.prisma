@@ -1,0 +1,105 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum QuoteStatus { DRAFT READY SENT ACCEPTED REJECTED EXPIRED }
+
+model Contractor {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+  company   Company?
+  quotes    Quote[]
+  priceItems PriceItem[]
+  templates QuoteTemplate[]
+}
+
+model Company {
+  id          String @id @default(cuid())
+  contractorId String @unique
+  name        String
+  email       String?
+  phone       String?
+  address     String?
+  logoUrl     String?
+  taxRate     Decimal @default(0) @db.Decimal(5, 2)
+  markupRate  Decimal @default(0) @db.Decimal(5, 2)
+  contractor  Contractor @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+}
+
+model Quote {
+  id          String      @id @default(cuid())
+  contractorId String
+  number      String
+  status      QuoteStatus @default(DRAFT)
+  customerName String
+  customerEmail String?
+  customerPhone String?
+  projectAddress String?
+  projectType String
+  projectTitle String
+  description String?     @db.Text
+  scope       String?     @db.Text
+  paymentTerms String?    @db.Text
+  assumptions String?     @db.Text
+  exclusions  String?     @db.Text
+  markupRate  Decimal     @default(0) @db.Decimal(5, 2)
+  contingencyRate Decimal @default(0) @db.Decimal(5, 2)
+  taxRate     Decimal     @default(0) @db.Decimal(5, 2)
+  discount    Decimal     @default(0) @db.Decimal(12, 2)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  expiresAt   DateTime?
+  contractor  Contractor  @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+  items       QuoteItem[]
+
+  @@unique([contractorId, number])
+  @@index([contractorId, status, createdAt])
+}
+
+model QuoteItem {
+  id          String @id @default(cuid())
+  quoteId     String
+  name        String
+  category    String
+  description String? @db.Text
+  quantity    Decimal @db.Decimal(12, 2)
+  unit        String
+  unitCost    Decimal @db.Decimal(12, 2)
+  notes       String? @db.Text
+  sortOrder   Int @default(0)
+  quote       Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+}
+
+model PriceItem {
+  id          String @id @default(cuid())
+  contractorId String
+  name        String
+  category    String
+  description String? @db.Text
+  unit        String
+  defaultCost Decimal @db.Decimal(12, 2)
+  supplierName String?
+  notes       String? @db.Text
+  updatedAt   DateTime @updatedAt
+  contractor  Contractor @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+  @@index([contractorId, name])
+}
+
+model QuoteTemplate {
+  id          String @id @default(cuid())
+  contractorId String
+  name        String
+  projectType String
+  markupRate  Decimal @default(0) @db.Decimal(5, 2)
+  taxRate     Decimal @default(0) @db.Decimal(5, 2)
+  items       Json
+  scope       String? @db.Text
+  paymentTerms String? @db.Text
+  exclusions  String? @db.Text
+  contractor  Contractor @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+}
