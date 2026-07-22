@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { dispatchQuoteLeadEvent } from "@/lib/integrations/lead-command-webhook";
 
 type QuoteItemRow = { id: string; name: string; category: string; quantity: number | string; unit: string; unit_cost: number | string; sort_order: number };
 
@@ -23,9 +24,28 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const parsed = z.object({ status: z.enum(["DRAFT", "READY", "SENT", "ACCEPTED", "REJECTED", "EXPIRED"]) }).safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: "Invalid quote status" }, { status: 400 });
-  const { error } = await supabase.from("contractor_quotes").update({ status: parsed.data.status, updated_at: new Date().toISOString() }).eq("id", id);
+  const occurredAt = new Date().toISOString();
+  const { data, error } = await supabase.from("contractor_quotes").update({ status: parsed.data.status, updated_at: occurredAt }).eq("id", id).select("*,contractor_quote_items(*)").single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ success: true });
+  const leadSync = await dispatchQuoteLeadEvent({
+    id: data.id,
+    quoteNumber: data.quote_number,
+    status: data.status,
+    customerName: data.customer_name,
+    customerEmail: data.customer_email,
+    customerPhone: data.customer_phone,
+    projectAddress: data.project_address,
+    projectType: data.project_type,
+    projectTitle: data.project_title,
+    description: data.description,
+    markup: Number(data.markup_rate),
+    contingency: Number(data.contingency_rate),
+    tax: Number(data.tax_rate),
+    discount: Number(data.discount),
+    items: data.contractor_quote_items.map((item: QuoteItemRow) => ({ quantity: Number(item.quantity), unitCost: Number(item.unit_cost) })),
+    occurredAt,
+  });
+  return NextResponse.json({ success: true, leadSync });
 }
 
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
