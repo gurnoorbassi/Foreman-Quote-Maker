@@ -1,29 +1,6 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { dispatchQuoteLeadEvent } from "@/lib/integrations/lead-command-webhook";
-
-const quoteSchema = z.object({
-  quoteNumber: z.string().trim().min(1).max(80),
-  status: z.enum(["DRAFT", "READY", "SENT", "ACCEPTED", "REJECTED", "EXPIRED"]).default("DRAFT"),
-  customerName: z.string().trim().min(1).max(160),
-  customerEmail: z.string().email().or(z.literal("")),
-  customerPhone: z.string().max(60),
-  projectAddress: z.string().max(300),
-  projectType: z.string().min(1).max(100),
-  projectTitle: z.string().min(1).max(200),
-  description: z.string().max(6000),
-  scope: z.string().max(12000),
-  paymentTerms: z.string().max(6000),
-  assumptions: z.string().max(6000),
-  exclusions: z.string().max(6000),
-  markup: z.number().min(0).max(100),
-  contingency: z.number().min(0).max(100),
-  tax: z.number().min(0).max(100),
-  deposit: z.number().min(0).max(100),
-  discount: z.number().min(0),
-  items: z.array(z.object({ name: z.string().min(1).max(200), category: z.string().min(1).max(100), qty: z.number().min(0), unit: z.string().min(1).max(50), cost: z.number().min(0) })).min(1).max(250),
-});
+import { saveQuoteRequest } from "@/lib/quotes/save-quote";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -47,37 +24,5 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const { data: claimsData } = await supabase.auth.getClaims();
-  const userId = claimsData?.claims?.sub;
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const parsed = quoteSchema.safeParse(await request.json());
-  if (!parsed.success) return NextResponse.json({ error: "Quote validation failed", details: parsed.error.flatten() }, { status: 400 });
-  const quote = parsed.data;
-  const occurredAt = new Date().toISOString();
-  const { data, error } = await supabase.from("contractor_quotes").upsert({ owner_id: userId, quote_number: quote.quoteNumber, status: quote.status, customer_name: quote.customerName, customer_email: quote.customerEmail || null, customer_phone: quote.customerPhone || null, project_address: quote.projectAddress || null, project_type: quote.projectType, project_title: quote.projectTitle, description: quote.description || null, scope: quote.scope || null, payment_terms: quote.paymentTerms || null, assumptions: quote.assumptions || null, exclusions: quote.exclusions || null, markup_rate: quote.markup, contingency_rate: quote.contingency, tax_rate: quote.tax, deposit_rate: quote.deposit, discount: quote.discount, updated_at: occurredAt }, { onConflict: "owner_id,quote_number" }).select("id").single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  const { error: deleteError } = await supabase.from("contractor_quote_items").delete().eq("quote_id", data.id);
-  if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 });
-  const { error: itemError } = await supabase.from("contractor_quote_items").insert(quote.items.map((item, index) => ({ owner_id: userId, quote_id: data.id, name: item.name, category: item.category, quantity: item.qty, unit: item.unit, unit_cost: item.cost, sort_order: index })));
-  if (itemError) return NextResponse.json({ error: itemError.message }, { status: 500 });
-  const leadSync = await dispatchQuoteLeadEvent({
-    id: data.id,
-    quoteNumber: quote.quoteNumber,
-    status: quote.status,
-    customerName: quote.customerName,
-    customerEmail: quote.customerEmail,
-    customerPhone: quote.customerPhone,
-    projectAddress: quote.projectAddress,
-    projectType: quote.projectType,
-    projectTitle: quote.projectTitle,
-    description: quote.description,
-    markup: quote.markup,
-    contingency: quote.contingency,
-    tax: quote.tax,
-    discount: quote.discount,
-    items: quote.items.map((item) => ({ quantity: item.qty, unitCost: item.cost })),
-    occurredAt,
-  });
-  return NextResponse.json({ id: data.id, saved: true, leadSync });
+  return saveQuoteRequest(request, await createClient());
 }

@@ -37,6 +37,7 @@ yarn-error.log*
 # local hosting and generated artifacts
 .netlify/
 tmp/
+supabase/.temp/
 tailwindcss-*.log
 
 # vercel

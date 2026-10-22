@@ -25,7 +25,8 @@ export async function generateQuotePdf(quote: PdfQuote, company: PdfCompany) {
   page.drawText(company.name, { x: 94, y: 738, size: 16, font: bold, color: dark });
   page.drawText("PROFESSIONAL RENOVATION QUOTE", { x: 94, y: 722, size: 7, font: bold, color: muted });
   page.drawText("QUOTE", { x: 504, y: 740, size: 7, font: bold, color: muted });
-  page.drawText(quote.number, { x: 462, y: 721, size: 14, font: bold, color: dark });
+  const numberSize = Math.min(14, 150 / bold.widthOfTextAtSize(quote.number, 1));
+  page.drawText(quote.number, { x: 564 - bold.widthOfTextAtSize(quote.number, numberSize), y: 721, size: numberSize, font: bold, color: dark });
   page.drawLine({ start: { x: 48, y: 702 }, end: { x: 564, y: 702 }, thickness: 1.5, color: dark });
   y = 675;
   text("PREPARED FOR", 48, 7, bold, muted); text(quote.customerName, 48, 12, bold); paragraph([quote.projectAddress, quote.customerEmail, quote.customerPhone].filter(Boolean).join(" | "), 48, 240, 8);
