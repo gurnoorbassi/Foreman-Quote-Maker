@@ -41,3 +41,11 @@ In Supabase Authentication URL settings, set the Site URL to the production Netl
 - Server routes validate Supabase JWT claims. Database RLS independently enforces the same owner boundary.
 - Uploaded documents use the private `contractor-quote-documents` bucket and paths beginning with the authenticated user ID.
 - AI output is always an unpriced proposal and must be explicitly accepted by the contractor before it is added to a quote.
+
+## Quote-save reliability
+
+Apply `supabase/migrations/20261022184512_atomic_quote_save.sql` before deploying the matching application code. It adds `save_contractor_quote`, an invoker-rights RPC: quote details and replacement line items commit together or roll back together. Existing quotes update by UUID; new quotes with a duplicate number are rejected instead of overwriting. Old browser sessions should reload after deployment because older clients do not send the UUID on updates.
+
+PDF download saves the current draft first, including existing quotes. Failed or unconfirmed saves keep the editor available and block the download; after a connection failure, check the saved quote list before retrying because the server may have committed before the response was lost. Drafts remain in component memory, not durable offline storage.
+
+Run `npm test`, `npx tsc --noEmit`, `npm run lint`, and `npm run build`. The new database tests use PGlite with the repository's actual quote tables, RLS policies and RPC. They exercise transaction rollback, duplicate numbers, owner isolation and numeric limits locally; stubbed auth and a single connection do not certify hosted JWT/PostgREST integration or multi-connection concurrency. The browser checks used mocked API responses, not a live database.
